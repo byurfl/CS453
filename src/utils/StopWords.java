@@ -27,7 +27,7 @@ public class StopWords {
 	public StopWords(){
 		try {
 			// Read the unorder file in
-			BufferedReader in = new BufferedReader(new FileReader("data/stopwords.txt")); //THIS IS THE FILE THAT CONTAINS THE STOPWORDS
+			BufferedReader in = new BufferedReader(new FileReader("/users/grads/l/leer6/453/CS453/data/stopwords.txt")); //THIS IS THE FILE THAT CONTAINS THE STOPWORDS
 			StringBuffer str = new StringBuffer();
 			String nextLine = "";
 			while ((nextLine = in.readLine()) != null)

@@ -2,6 +2,7 @@ package project2;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -34,9 +35,9 @@ public class QuerySuggester {
 		System.out.print("Parsing provided log files...");
 		AolLogParser alp = new AolLogParser(dataDirectory);
 		alp.parseLogs();
-		System.err.println("Max mod freq. query pair:");
-		System.err.println(alp.getMaxModFreqQueries());
-		System.err.println(alp.getMaxModFrequency());
+//		System.err.println("Max mod freq. query pair:");
+//		System.err.println(alp.getMaxModFreqQueries());
+//		System.err.println(alp.getMaxModFrequency());
 		Trie t = alp.getTrie();
 		Map<String, Map<String, Integer>> modFreqs = alp.getModFrequencies();
 		
@@ -60,23 +61,33 @@ public class QuerySuggester {
 				List<String> sortedSuggestions = new ArrayList<String>();
 				List<Double> sortedRanks = new ArrayList<Double>();
 				
-				if (suggestions.isEmpty()) {
-					System.err.println("No suggestions found.");
-					continue;
-				}
 				for (String current : suggestions) {
+					// current suggestion must be at least one word longer than original query
 					List<String> currentSuggestionTokens = Tokenizer.tokenize(current, false, null);
+					if (currentSuggestionTokens.size() <= currentQueryTokens.size()) {
+						continue;
+					}
 					
 					double freq = (double)t.getFrequency(currentSuggestionTokens) / (double)t.getMaxFrequency();
 					
 					String word1 = currentQueryTokens.get(currentQueryTokens.size()-1);
-					String word2 = currentSuggestionTokens.get(0);
+					String word2 = currentSuggestionTokens.get(currentQueryTokens.size());
 					
-					String stem1 = ps.stem(word1);
-					String stem2 = ps.stem(word2);
+					String stem1 = word1;
+					if (word1.length() > 1) {
+						stem1 = ps.stem(word1);
+					}
 					
+					String stem2 = word2;
+					if (word2.length() > 1) {
+						stem2 = ps.stem(word2);
+					}
+					
+//					System.out.println("Word 1: " + stem1);
+//					System.out.println("Word 2: " + stem2);
 					double wcf = getWcfScore(stem1, stem2);
-					
+//					double wcf = 1.0;
+//					System.out.println("WCF: " + wcf);
 					double mods = 0;
 					
 					Map<String, Integer> modQueries = modFreqs.get(currentQuery);
@@ -86,9 +97,9 @@ public class QuerySuggester {
 						}
 					}
 					
-					if (mods != 0) {
-						System.err.println("Found non-zero mod counts!");
-					}
+//					if (mods != 0) {
+//						System.err.println("Found non-zero mod counts!");
+//					}
 					
 					mods = mods / (double)alp.getMaxModFrequency();
 					
@@ -117,13 +128,18 @@ public class QuerySuggester {
 							}
 						}
 						if (!added) {
-							// biggest rank so far
+							// smallest score so far, add to end
 							sortedRanks.add(suggRank);
 							sortedSuggestions.add(current);
 						}
 					}
 				}
 				
+				if (suggestions.isEmpty()) {
+					System.err.println("No suggestions found.");
+					continue;
+				}
+		
 				for (int i = 0; i < 8 && i < sortedSuggestions.size(); i++) {
 					System.out.println(sortedSuggestions.get(i));
 				}
@@ -141,12 +157,15 @@ public class QuerySuggester {
 			String contentVal = contentDoc.body().text();
 			Double val= Double.parseDouble(contentVal);
 			
-			System.out.println("WCF: " + val);
 			return val;
+		}
+		catch (SocketTimeoutException ste) {
+			System.err.println("Socket read timed out.");
+			return -1.0;
 		}
 		catch (IOException e) {
 			e.printStackTrace();
-			return 1.0;
+			return -1.0;
 		}
 	}
 }
